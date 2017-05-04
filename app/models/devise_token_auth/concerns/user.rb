@@ -95,7 +95,8 @@ module DeviseTokenAuth::Concerns::User
 
 
     def tokens_has_json_column_type?
-      database_exists? && table_exists? && self.columns_hash['tokens'] && self.columns_hash['tokens'].type.in?([:json, :jsonb])
+      # database_exists? && table_exists? && self.columns_hash['tokens'] && self.columns_hash['tokens'].type.in?([:json, :jsonb])
+      return true
     end
 
     # This one needs to be redone with a mongo connection test. TODO
