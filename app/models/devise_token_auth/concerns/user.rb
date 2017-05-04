@@ -98,13 +98,17 @@ module DeviseTokenAuth::Concerns::User
       database_exists? && table_exists? && self.columns_hash['tokens'] && self.columns_hash['tokens'].type.in?([:json, :jsonb])
     end
 
+    # This one needs to be redone with a mongo connection test. TODO
     def database_exists?
-      ActiveRecord::Base.connection
-    rescue ActiveRecord::NoDatabaseError
-      false
-    else
-      true
+      return true
     end
+    # def database_exists?
+    #   ActiveRecord::Base.connection
+    # rescue ActiveRecord::NoDatabaseError
+    #   false
+    # else
+    #   true
+    # end
   end
 
 
