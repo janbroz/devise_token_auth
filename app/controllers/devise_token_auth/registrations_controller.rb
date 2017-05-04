@@ -24,65 +24,86 @@ module DeviseTokenAuth
 
       # success redirect url is required
       if resource_class.devise_modules.include?(:confirmable) && !@redirect_url
-        return render_create_error_missing_confirm_success_url
+        return render json: {
+                        status: 'error',
+                        data:   @resource.as_json,
+                        errors: ["Missing `confirm_success_url` param."]
+                      }, status: 403
+        # return render_create_error_missing_confirm_success_url
       end
 
       # if whitelist is set, validate redirect_url against whitelist
       if DeviseTokenAuth.redirect_whitelist
         unless DeviseTokenAuth::Url.whitelisted?(@redirect_url)
-          return render_create_error_redirect_url_not_allowed
+          # return render_create_error_redirect_url_not_allowed
+          return render json: {
+                          status: 'error',
+                          data:   @resource.as_json,
+                          errors: ["Redirect to #{redirect_url} not allowed."]
+                        }, status: 403
+          
         end
       end
 
-      begin
-        # override email confirmation, must be sent manually from ctrl
-        resource_class.set_callback("create", :after, :send_on_create_confirmation_instructions)
-        resource_class.skip_callback("create", :after, :send_on_create_confirmation_instructions)
-        if @resource.save
-          yield @resource if block_given?
+      if @resource.save
+        yield @resource if block_given?
 
-          unless @resource.confirmed?
-            # user will require email authentication
-            @resource.send_confirmation_instructions({
-              client_config: params[:config_name],
-              redirect_url: @redirect_url
-            })
+        unless @resource.confirmed?
+          # user will require email authentication
+          @resource.send_confirmation_instructions({
+                                                     client_config: params[:config_name],
+                                                     redirect_url: redirect_url
+                                                   })
 
-          else
-            # email auth has been bypassed, authenticate user
-            @client_id = SecureRandom.urlsafe_base64(nil, false)
-            @token     = SecureRandom.urlsafe_base64(nil, false)
-
-            @resource.tokens[@client_id] = {
-              token: BCrypt::Password.create(@token),
-              expiry: (Time.now + DeviseTokenAuth.token_lifespan).to_i
-            }
-
-            @resource.save!
-
-            update_auth_header
-          end
-          render_create_success
         else
-          clean_up_passwords @resource
-          render_create_error
+          # email auth has been bypassed, authenticate user
+          @client_id = SecureRandom.urlsafe_base64(nil, false)
+          @token     = SecureRandom.urlsafe_base64(nil, false)
+
+          @resource.tokens[@client_id] = {
+            token: BCrypt::Password.create(@token),
+            expiry: (Time.now + DeviseTokenAuth.token_lifespan).to_i
+          }
+
+          @resource.save!
+
+          update_auth_header
         end
-      rescue ActiveRecord::RecordNotUnique
+
+        render json: {
+                 status: 'success',
+                 data:   @resource.as_json
+               }
+      else
         clean_up_passwords @resource
-        render_create_error_email_already_exists
+        render json: {
+                 status: 'error',
+                 data:   @resource.as_json,
+                 errors: @resource.errors.to_hash.merge(full_messages: @resource.errors.full_messages)
+               }, status: 403
       end
+      
     end
 
     def update
       if @resource
         if @resource.send(resource_update_method, account_update_params)
           yield @resource if block_given?
-          render_update_success
+          render json: {
+            status: 'success',
+            data:   @resource.as_json
+          }
         else
-          render_update_error
+          render json: {
+            status: 'error',
+            errors: @resource.errors.to_hash.merge(full_messages: @resource.errors.full_messages)
+          }, status: 403
         end
       else
-        render_update_error_user_not_found
+        render json: {
+          status: 'error',
+          errors: ["User not found."]
+        }, status: 404
       end
     end
 
@@ -91,9 +112,15 @@ module DeviseTokenAuth
         @resource.destroy
         yield @resource if block_given?
 
-        render_destroy_success
+        render json: {
+          status: 'success',
+          message: "Account with uid #{@resource.uid} has been destroyed."
+        }
       else
-        render_destroy_error
+        render json: {
+          status: 'error',
+          errors: ["Unable to locate account for destruction."]
+        }, status: 404
       end
     end
 

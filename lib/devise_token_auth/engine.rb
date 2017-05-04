@@ -17,6 +17,7 @@ module DeviseTokenAuth
                  :default_confirm_success_url,
                  :default_password_reset_url,
                  :redirect_whitelist,
+                 :threadsafe,
                  :check_current_password_before_update,
                  :enable_standard_devise_support,
                  :remove_tokens_after_password_reset,
@@ -31,6 +32,7 @@ module DeviseTokenAuth
   self.default_confirm_success_url          = nil
   self.default_password_reset_url           = nil
   self.redirect_whitelist                   = nil
+  self.threadsafe                           = true
   self.check_current_password_before_update = false
   self.enable_standard_devise_support       = false
   self.remove_tokens_after_password_reset   = false

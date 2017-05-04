@@ -1,3 +1,4 @@
+require 'mongoid-locker'
 require 'bcrypt'
 
 module DeviseTokenAuth::Concerns::User
@@ -15,6 +16,7 @@ module DeviseTokenAuth::Concerns::User
   end
 
   included do
+    include Mongoid::Locker
     # Hack to check if devise is already enabled
     unless self.method_defined?(:devise_modules)
       devise :database_authenticatable, :registerable,
@@ -24,7 +26,7 @@ module DeviseTokenAuth::Concerns::User
     end
 
     unless tokens_has_json_column_type?
-      serialize :tokens, JSON
+      #serialize :tokens, JSON
     end
 
     if DeviseTokenAuth.default_callbacks
@@ -32,8 +34,6 @@ module DeviseTokenAuth::Concerns::User
     end
 
     # can't set default on text fields in mysql, simulate here instead.
-    after_save :set_empty_token_hash
-    after_initialize :set_empty_token_hash
 
     # get rid of dead tokens
     before_save :destroy_expired_tokens
@@ -158,8 +158,7 @@ module DeviseTokenAuth::Concerns::User
       updated_at && last_token &&
 
       # ensure that previous token falls within the batch buffer throttle time of the last request
-      Time.parse(updated_at) > Time.now - DeviseTokenAuth.batch_request_buffer_throttle &&
-
+      updated_at > Time.now - DeviseTokenAuth.batch_request_buffer_throttle and
       # ensure that the token is valid
       ::BCrypt::Password.new(last_token) == token
     )
