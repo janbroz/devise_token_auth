@@ -193,12 +193,12 @@ module DeviseTokenAuth::Concerns::SetUserByToken
             auth_header = @resource.create_new_auth_token(@client_id)
           end
 
-      # update the response header
-      response.headers.merge!(auth_header)
-      end # end lock
-        end # end lock
-      end # end ensure_pristine_resource
-  end  
+          # update the response header
+          response.headers.merge!(auth_header)
+    end # end lock
+  end # end lock
+  # end # end ensure_pristine_resource
+  # end  
 
   private
 
