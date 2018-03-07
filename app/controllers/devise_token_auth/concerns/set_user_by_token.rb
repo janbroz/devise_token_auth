@@ -120,11 +120,36 @@ module DeviseTokenAuth::Concerns::SetUserByToken
           # should not append auth header if @resource related token was
           # cleared by sign out in the meantime
           return if @used_auth_by_token && @resource.tokens[@client_id].nil?
-      else
-        do_auth_header_update
-      end
-    end
+          # determine batch request status after request processing, in case
+          # another processes has updated it during that processing
+          @is_batch_request = is_batch_request?(@resource, @client_id)
 
+          auth_header = {}
+
+          # extend expiration of batch buffer to account for the duration of
+          # this request
+          if @is_batch_request
+            auth_header = @resource.extend_batch_buffer(@token, @client_id)
+
+            # Do not return token for batch requests to avoid invalidated
+            # tokens returned to the client in case of race conditions.
+            # Use a blank string for the header to still be present and
+            # being passed in a XHR response in case of
+            # 304 Not Modified responses.
+            auth_header[DeviseTokenAuth.headers_names[:"access-token"]] = ' '
+            auth_header[DeviseTokenAuth.headers_names[:"expiry"]] = ' '
+
+          # update Authorization response header with new token
+          else
+            auth_header = @resource.create_new_auth_token(@client_id)
+          end
+
+          # update the response header
+          response.headers.merge!(auth_header)
+
+        end # end lock
+      end # end ensure_pristine_resource
+    end
   end
 
   def resource_class(m=nil)
